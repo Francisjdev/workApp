@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login</title>
+    <link rel="stylesheet" href="/static/css/loginstyle.css"> <!-- Make sure to use the correct path to your CSS file -->
+</head>
+<body>
+    <div class="main">
+        <div class="login-container">
+            <h1>Login</h1>
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    <ul>
+                        {% for message in messages %}
+                            <li>{{ message }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            {% endwith %}
+            <form method="post" action="{{ url_for('login') }}">
+                <label for="usuario">Usuario:</label>
+                <input type="text" id="usuario" name="usuario" required>
+                <br><br>
+                <label for="clave">Clave:</label>
+                <input type="password" id="clave" name="clave" required>
+                <br><br>
+                <input type="submit" value="Iniciar Sesión">
+              
+        
+           
+            </form>
+        </div>
+     
+       
+    </div>
+    
+</body>
+</html>

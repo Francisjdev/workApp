@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arriendo</title>
+    <link rel="stylesheet" href="/static/css/arriendo.css">
+</head>
+<body class="wrapper">
+    <header>
+        <ul>
+            <li>logo</li>
+            <li><a href="{{ url_for('home') }}">home </a></li>
+            <li><a href="{{ url_for('logout') }}">Logout</a></li>
+        </ul>
+    </header>
+
+    <h3>Arriendo de Mesas</h3>
+    <main id="main-container">
+       
+        <div class="rent-form">
+            <form action="/arrendar_mesa" class="form" method="POST" onsubmit="return confirmArriendo();">
+                <!-- Date Picker -->
+                <label for="fecha_arriendo">Fecha de Arriendo</label>
+                <input type="date" id="fecha_arriendo" name="fecha_arriendo" required>
+
+                
+                <!-- Hora Select Dropdown -->
+                <label for="hora">Hora</label>
+                <select id="hora" name="hora" required>
+                    <option value="">Seleccione un Bloque Horario</option>
+                    <!-- Options will be dynamically updated based on date -->
+                </select>
+                <!-- Sucursal Select Dropdown -->
+                <label for="sucursal">Sucursal</label>
+                <select id="sucursal" name="sucursal" required>
+                    <option value="">Seleccione una Sucursal</option>
+                    <option value="1">Manuel Montt</option>
+                    <option value="2">Colón</option>
+                </select>
+        
+                <!-- Juegos Select Dropdown (Populated from DB) -->
+                <label for="juegos">Juegos</label>
+                <select id="juegos" name="juegos" required>
+                    <option value="">Seleccione un Juego</option>
+                    <!-- Options will be populated dynamically from the database -->
+                </select>
+        
+                <!-- Mesas Select Dropdown -->
+                <label for="mesas">Mesas</label>
+                <select id="mesas" name="mesas" required>
+                    <option value="">Seleccione una mesa</option>
+                    <!-- Options will be populated dynamically from the database -->
+                </select>
+        
+                <button type="submit" id="arrendar">Arrendar Mesa</button>
+            </form>
+        </div>
+        
+        <script>
+            function confirmArriendo() {
+                var fechaArriendo = document.getElementById('fecha_arriendo').value;
+                var confirmationMessage = 'Estás a punto de arrendar una mesa para el día ' + fechaArriendo + '. Esto usará 100 puntos. ¿Deseas continuar?';
+                return confirm(confirmationMessage);
+            }
+        </script>
+        
+        <script>
+            document.getElementById('fecha_arriendo').addEventListener('change', function() {
+                var selectedDate = new Date(this.value);
+                var dayOfWeek = selectedDate.getDay(); // 0 = Monday, 5 = Saturday
+        
+                // Get the Hora select element
+                var horaSelect = document.getElementById('hora');
+        
+        
+                // Clear existing options
+                horaSelect.innerHTML = '<option value="">Seleccione un Bloque Horario</option>';
+                    console.log(dayOfWeek)
+                if (dayOfWeek === 5) { // Saturday
+                    // Add options 1 and 2 for Saturday
+                    horaSelect.innerHTML += '<option value="1">10:00 a 14:00</option>';
+                    horaSelect.innerHTML += '<option value="2">15:00 a 19:00</option>';
+                } else if (dayOfWeek !== 6) { // Not Sunday
+                    // Add options 3 and 4 for other days
+                    horaSelect.innerHTML += '<option value="1">12:00 a 16:00</option>';
+                    horaSelect.innerHTML += '<option value="2">16:00 a 20:00</option>';
+                }
+            });
+        </script>
+         <script>
+            // Fetch juegos data from the Flask route
+            fetch('/get_juegos')
+                .then(response => response.json())
+                .then(data => {
+                    const juegosSelect = document.getElementById('juegos');
+                    const mesasSelect = document.getElementById('mesas');
+        
+                    // Clear existing options
+                    mesasSelect.innerHTML = '<option value="">Seleccione una mesa</option>';
+        
+                    // Populate options from fetched data
+                    data.juegos.forEach(juego => {
+                        juegosSelect.innerHTML += `<option value="${juego.id}">${juego.nombre}</option>`;
+                    });
+        
+                    // Event listener for Juegos select dropdown change
+                    juegosSelect.addEventListener('change', function() {
+                        const selectedJuegoId = parseInt(this.value);
+        
+                        // Clear existing options
+                        mesasSelect.innerHTML = '<option value="">Seleccione una mesa</option>';
+        
+                        // Show Mesa 1 and Mesa 2 for games with IDs 1 to 5, Mesa 3 for games with IDs 6 and above
+                        if (selectedJuegoId >= 1 && selectedJuegoId <= 5) {
+                            mesasSelect.innerHTML += '<option value="1" class="game-1-to-5">Mesa 1</option>';
+                            mesasSelect.innerHTML += '<option value="2" class="game-1-to-5">Mesa 2</option>';
+                        } else if (selectedJuegoId >= 6) {
+                            mesasSelect.innerHTML += '<option value="3">Mesa 3</option>';
+                        }
+                    });
+                })
+                .catch(error => console.error('Error fetching juegos data:', error));
+        </script>
+          <!-- para verificar disponibilidad -->
+        <script>
+            // Event listener para el cambio de fecha o bloque horario
+            document.getElementById('hora').addEventListener('change', verificarDisponibilidad);
+        
+            // Función para verificar disponibilidad de stock
+            function verificarDisponibilidad() {
+                // Obtener valores seleccionados por el cliente
+                var fecha = document.getElementById('fecha_arriendo').value;
+                var bloqueHorario = document.getElementById('hora').value;
+        
+                // Enviar solicitud AJAX al servidor
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', '/verificar_disponibilidad', true);
+                xhr.setRequestHeader('Content-Type', 'application/json');
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        var response = JSON.parse(xhr.responseText);
+                        if (response.disponible) {
+                            alert('¡Stock disponible para esa fecha y bloque horario!');
+                        } else {
+                            alert('No hay stock disponible para esa fecha y bloque horario. Por favor, elija otra fecha o bloque horario.');
+                        }
+                    } else {
+                        alert('Error al verificar disponibilidad. Inténtelo de nuevo más tarde.');
+                    }
+                };
+                xhr.onerror = function () {
+                    alert('Error al verificar disponibilidad. Inténtelo de nuevo más tarde.');
+                };
+                xhr.send(JSON.stringify({ fecha: fecha, bloqueHorario: bloqueHorario }));
+            }
+        </script>
+        
+        
+    
+    </main>
+  
+</body>
+</html>

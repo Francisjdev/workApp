@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Movimientos por Fecha</title>
+    <link rel="stylesheet" href="/static/css/tables.css">
+</head>
+<body>
+    <header>
+        <img src="path/to/your/logo.png" alt="Logo">
+        <nav>
+            <a href="{{ url_for('admin_home') }}">Home</a>
+            <a href="{{ url_for('mantenedor') }}">Mantenedores</a>
+            <a href="{{ url_for('logout') }}">Log Out</a>
+        </nav>
+    </header>
+    <form method="post" action="{{ url_for('movimientos_por_fecha') }}">
+        <label for="fecha">Fecha:</label>
+        <input type="date" id="fecha" name="fecha" required>
+        <button type="submit">Buscar</button>
+    </form>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>ID Mov</th>
+                <th>RUT</th>
+                <th>Puntos</th>
+                <th>Tipo Movimiento</th>
+                <th>Fecha Creación</th>
+                <th>Fecha Movimiento</th>
+                <th>Sucursal</th>
+                <th>Mesa</th>
+                <th>Bloque Horario</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for movimiento in movimientos %}
+            <tr>
+                <td>{{ movimiento[0] }}</td>
+                <td>{{ movimiento[1] }}</td>
+                <td>{{ movimiento[2] }}</td>
+                <td>{{ movimiento[3] }}</td>
+                <td>{{ movimiento[4] }}</td>
+                <td>{{ movimiento[5] }}</td>
+                <td>{{ movimiento[6] }}</td>
+                <td>{{ movimiento[7] }}</td>
+                <td>{{ movimiento[8] }}</td>
+                <td>{{ movimiento[9] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

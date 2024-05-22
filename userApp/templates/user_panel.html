@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="wrapper">
+    <header>
+        <ul>
+            <li>Logo</li>
+            <li><a href="{{ url_for('home') }}">Home</a></li>
+            <li><a href="{{ url_for('logout') }}">Logout</a></li>
+        </ul>
+    </header>
+
+    <h3>Información</h3>
+    <main id="main-container">
+        <div class="user-info">
+            <form action="" class="user-info2">
+                <label for="Nombre">Nombre</label>
+                <input type="text" id="Nombre" name="Nombre" value="{{ user_info[0] }}" readonly>
+                <label for="Apellido">Apellido</label>
+                <input type="text" id="apellido" name="apellido" value="{{ user_info[1] }}" readonly>
+                <label for="Rut">Rut</label>
+                <input type="text" id="rut" name="rut" value="{{ user_info[2] }}" readonly>
+                <label for="Email">Email</label>
+                <input type="text" id="email" name="email" value="{{ user_info[3] }}" readonly>
+                <label for="Puntos">Puntos</label>
+                <input type="text" id="puntos" name="puntos" value="{{ remaining_points }}" readonly>
+        
+                <button type="button" id="arrendarpanel">Arrendar Mesa</button>
+                <button type="button" id="descuento">Solicitar Descuento</button>
+            </form>
+        </div>
+        
+        <div class="movement-info">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID Mov</th>
+                        <th>Tipo Movimiento</th>
+                        <th>Puntos</th>
+                        <th>Fecha Movimiento</th>
+                        <th>Sucursal</th>
+                        <th>Mesa</th>
+                        <th>Bloque Horario</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for movimiento in combined_data %}
+                    <tr>
+                        <td>{{ movimiento.id_mov }}</td>
+                        <td>{{ movimiento.tipo_mov }}</td>
+                        <td>{{ movimiento.puntos }}</td>
+                        <td>{{ movimiento.fecha_mov }}</td>
+                        <td>{{ movimiento.sucursal }}</td>
+                        <td>{{ movimiento.mesa }}</td>
+                        <td>{{ movimiento.hora }}</td>
+                        <td>
+                            <button class="cancelar-btn" data-id="{{ movimiento.id_mov }}">Cancelar</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </main>
+    <script>
+        document.getElementById('arrendarpanel').addEventListener('click', function() {
+            window.location.href = '/arriendo'; // Redirect to arriendo.html
+        });
+
+        // Código para cancelar un arriendo
+        document.addEventListener('DOMContentLoaded', function() {
+            const rutValue = document.getElementById('rut').value; // Get the rut value from the input field
+            console.log("RUT Value:", rutValue);
+
+            const cancelarBtns = document.querySelectorAll('.cancelar-btn');
+            console.log("Number of Cancelar buttons detected:", cancelarBtns.length);
+
+            cancelarBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const idMovimiento = this.getAttribute('data-id');
+                    console.log("Cancelar button clicked");
+                    console.log("ID Movimiento:", idMovimiento);
+
+                    // Ask for confirmation before proceeding
+                    const confirmCancel = confirm('¿Estás a punto de cancelar el arriendo de mesa? ¿Deseas continuar?');
+                    if (confirmCancel) {
+                        // Perform AJAX request to delete the entry from the database
+                        fetch('/cancelar', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ id: idMovimiento, rut: rutValue })
+                        })
+                        .then(response => {
+                            if (response.ok) {
+                                // Reload the page or update the table to reflect the deletion
+                                window.location.reload();
+                            } else {
+                                // Handle errors if necessary
+                                console.error('Failed to cancel reservation:', response.statusText);
+                            }
+                        })
+                        .catch(error => console.error('Error:', error));
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

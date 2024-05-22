@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/css/tables.css">
+    <title>Your Website</title>
+</head>
+
+<body>
+    <header>
+        <img src="path/to/your/logo.png" alt="Logo">
+        <nav>
+            <a href="{{ url_for('admin_home') }}">Home</a>
+            <a href="{{ url_for('arriendo_diario') }}">Arriendo Diario</a>
+            <a href="{{ url_for('mantenedor') }}">Mantenedores</a>
+            <a href="{{ url_for('logout') }}">Log Out</a>
+        </nav>
+    </header>
+
+    <h1>Panel de Administrador</h1>
+    <h2>Top 10 Clientes por Puntos</h2>
+    <table>
+        <tr>
+            <th>RUT</th>
+            <th>Nombre</th>
+            <th>Email</th>
+            <th>Puntos</th>
+        </tr>
+        {% for cliente in clientes %}
+        <tr>
+            <td>{{ cliente[0] }}</td>
+            <td>{{ cliente[1] }}</td>
+            <td>{{ cliente[2] }}</td>
+            <td>{{ cliente[3] }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <br>
+    <form method="post" action="{{ url_for('client_panel') }}">
+        <label for="rut">Buscar Cliente por RUT:</label>
+        <input type="text" id="rut" name="rut" required>
+        <input type="submit" value="Buscar">
+    </form>
+
+    <script>
+        function redirectToMantenedores() {
+            window.location.href = "{{ url_for('mantenedor') }}";  // Assuming 'mantenedor' is the endpoint for mantenedor.html
+        }
+    </script>
+    
+    
+</body>
+
+</html>

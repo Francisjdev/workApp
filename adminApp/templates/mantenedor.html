@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/css/tables.css">
+    <title>Mantenedores</title>
+</head>
+
+<body>
+    <header>
+        <img src="path/to/your/logo.png" alt="Logo">
+        <nav>
+            <a href="{{ url_for('admin_home') }}">Home</a>
+            <a href="{{ url_for('arriendo_diario') }}">Arriendo Diario</a>
+            <a href="{{ url_for('mantenedor') }}">Mantenedores</a>
+            <a href="{{ url_for('logout') }}">Log Out</a>
+        </nav>
+    </header>
+    <div>
+        <h1>¿Qué tabla deseas revisar?</h1>
+    </div>
+
+       
+ 
+
+    <main>
+        <form method="post" name="tableForm" onsubmit="return false;">
+            <select name="tabla" onchange="fetchTableData()">
+                <option value="" selected disabled>Selecciona una tabla</option>
+                <option value="tipos_mesa">Tipos de Mesas</option>
+                <option value="sucursales">Sucursales</option>
+                <option value="mesas_sucursal">Mesas por Sucursal</option>
+            </select>
+        </form>
+        <div id="tableContainer">
+            <!-- Table data will be dynamically inserted here -->
+        </div>
+    </main>
+
+    <script>
+        function fetchTableData() {
+            var selectedTable = document.forms['tableForm']['tabla'].value;
+        
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/fetch_table_data', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var responseData = JSON.parse(xhr.responseText);
+                    document.getElementById('tableContainer').innerHTML = responseData.table_html;
+                    addButtonsToTable(); // Call the function to add buttons after table data is loaded
+                }
+            };
+            var data = JSON.stringify({ 'selected_table': selectedTable });
+            xhr.send(data);
+        }
+
+
+// creacion de botones crud para las tablas
+
+        function addButtonsToTable() {
+    // Select all tables inside the tableContainer
+    var tables = document.getElementById('tableContainer').querySelectorAll('table');
+
+    tables.forEach(function(table) {
+        // Create buttons for each table
+        var addButton = document.createElement('button');
+        addButton.textContent = 'Agregar';
+        addButton.addEventListener('click', function() {
+            // Open a modal or form for adding new data
+            openAddForm(table);
+        });
+
+        var updateButton = document.createElement('button');
+updateButton.textContent = 'Actualizar';
+updateButton.addEventListener('click', function() {
+    // Open an update form for the selected table entry
+    openUpdateForm(table);
+});
+
+
+        var deleteButton = document.createElement('button');
+        deleteButton.textContent = 'Borrar';
+        deleteButton.addEventListener('click', function() {
+            openDeleteConfirmation(table);
+        });
+
+        // Append buttons to table
+        table.appendChild(addButton);
+        table.appendChild(updateButton);
+        table.appendChild(deleteButton);
+    });
+}
+
+// Fin creacion botones
+
+
+// eliminar entry de db 
+
+function openDeleteConfirmation(table) {
+    var confirmationForm = document.createElement('form');
+    var idInput = document.createElement('input');
+    idInput.type = 'text';
+    idInput.placeholder = 'Enter ID to delete';
+    var acceptButton = document.createElement('button');
+    acceptButton.textContent = 'Aceptar';
+    var cancelButton = document.createElement('button');
+    cancelButton.textContent = 'Cancelar';
+
+    confirmationForm.appendChild(idInput);
+    confirmationForm.appendChild(acceptButton);
+    confirmationForm.appendChild(cancelButton);
+
+    document.body.appendChild(confirmationForm);
+
+    // Add event listeners for accept and cancel buttons
+    acceptButton.addEventListener('click', function() {
+    var confirmDeletion = confirm('Are you sure you want to delete?');
+    if (confirmDeletion) {
+        var selectedTable = document.forms['tableForm']['tabla'].value; // Get the selected table value
+        var idToDelete = parseInt(idInput.value.trim());
+        console.log('Selected Table:', selectedTable);
+        console.log('ID to Delete:', idToDelete); // Add this log statement
+        fetch('/borrar_entry', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ selected_table: selectedTable, id: idToDelete })
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message); // Display success or error message
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
+    confirmationForm.remove(); // Remove the confirmation form
+});
+
+
+    cancelButton.addEventListener('click', function() {
+        confirmationForm.remove(); // Remove the confirmation form without deleting
+    });
+}
+
+
+
+function openAddForm(table) {
+    // Clear any existing modal content
+    var modal = document.querySelector('.modal');
+    if (modal) {
+        modal.remove();
+    }
+
+    // Create a new modal for adding data
+    modal = document.createElement('div');
+    modal.classList.add('modal');
+
+    // Create a form for adding new data based on the selected table
+    var form = document.createElement('form');
+    var addButton = document.createElement('button');
+    addButton.textContent = 'Guardar';
+    var cancelButton = document.createElement('button');
+    cancelButton.textContent = 'Cancelar';
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var selectedTable = document.forms['tableForm']['tabla'].value; // Get the selected table value
+        var formData = new FormData(form);
+        formData.append('selected_table', selectedTable); // Append selected_table key to form data
+        fetch('/agregar_entry', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message); // Display success or error message
+            modal.remove(); // Close the modal
+            if (data.success) {
+                fetchTableData(); // Refresh the table data
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred. Please try again.'); // Display error message
+        });
+    });
+    cancelButton.addEventListener('click', function() {
+        // Clear the form and close the modal
+        form.reset();
+        modal.remove();
+    });
+
+    // Create form fields based on the selected table
+    var selectedTable = document.forms['tableForm']['tabla'].value;
+    switch (selectedTable) {
+        case 'tipos_mesa':
+            // Create form fields for tipos_mesa table (nombre, tamano, cantidad)
+            var nombreInput = document.createElement('input');
+            nombreInput.type = 'text';
+            nombreInput.name = 'nombre';
+            nombreInput.placeholder = 'Nombre';
+
+            var tamanoInput = document.createElement('input');
+            tamanoInput.type = 'text';
+            tamanoInput.name = 'tamano';
+            tamanoInput.placeholder = 'Tamaño';
+
+            var cantidadInput = document.createElement('input');
+            cantidadInput.type = 'number';
+            cantidadInput.name = 'cantidad';
+            cantidadInput.placeholder = 'Cantidad';
+
+            // Append form fields to the form element
+            form.appendChild(nombreInput);
+            form.appendChild(tamanoInput);
+            form.appendChild(cantidadInput);
+            form.appendChild(addButton);
+            form.appendChild(cancelButton);
+            break;
+        case 'sucursales':
+            // Create form fields for sucursales table (nombre, direccion, comuna, ciudad, telefono, apertura, cierre)
+            var nombreInput = document.createElement('input');
+            nombreInput.type = 'text';
+            nombreInput.name = 'nombre';
+            nombreInput.placeholder = 'Nombre';
+
+            var direccionInput = document.createElement('input');
+            direccionInput.type = 'text';
+            direccionInput.name = 'direccion';
+            direccionInput.placeholder = 'Dirección';
+
+            var comunaInput = document.createElement('input');
+            comunaInput.type = 'text';
+            comunaInput.name = 'comuna';
+            comunaInput.placeholder = 'Comuna';
+
+            var ciudadInput = document.createElement('input');
+            ciudadInput.type = 'text';
+            ciudadInput.name = 'ciudad';
+            ciudadInput.placeholder = 'Ciudad';
+
+            var telefonoInput = document.createElement('input');
+            telefonoInput.type = 'text';
+            telefonoInput.name = 'telefono';
+            telefonoInput.placeholder = 'Teléfono';
+
+            var aperturaInput = document.createElement('input');
+            aperturaInput.type = 'text';
+            aperturaInput.name = 'apertura';
+            aperturaInput.placeholder = 'Apertura';
+
+            var cierreInput = document.createElement('input');
+            cierreInput.type = 'text';
+            cierreInput.name = 'cierre';
+            cierreInput.placeholder = 'Cierre';
+
+            // Append form fields to the form element
+            form.appendChild(nombreInput);
+            form.appendChild(direccionInput);
+            form.appendChild(comunaInput);
+            form.appendChild(ciudadInput);
+            form.appendChild(telefonoInput);
+            form.appendChild(aperturaInput);
+            form.appendChild(cierreInput);
+            form.appendChild(addButton);
+            form.appendChild(cancelButton);
+            break;
+
+            break;
+        case 'mesas_sucursal':
+            // Create form fields for mesas_sucursal table (id_sucursal, id_mesa, stock_mesa)
+            var idSucursalInput = document.createElement('input');
+            idSucursalInput.type = 'text';
+            idSucursalInput.name = 'id_sucursal';
+            idSucursalInput.placeholder = 'ID Sucursal';
+
+            var idMesaInput = document.createElement('input');
+            idMesaInput.type = 'text';
+            idMesaInput.name = 'id_mesa';
+            idMesaInput.placeholder = 'ID Mesa';
+
+            var stockMesaInput = document.createElement('input');
+            stockMesaInput.type = 'number';
+            stockMesaInput.name = 'stock_mesas';
+            stockMesaInput.placeholder = 'Stock Mesa';
+
+            // Append form fields to the form element
+            form.appendChild(idSucursalInput);
+            form.appendChild(idMesaInput);
+            form.appendChild(stockMesaInput);
+            form.appendChild(addButton);
+            form.appendChild(cancelButton);
+            break;
+
+        default:
+            // Handle default case or invalid table selection
+            alert('Invalid table selection');
+            break;
+    }
+
+    modal.appendChild(form);
+    document.body.appendChild(modal);
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+function openUpdateForm(table) {
+    // Clear any existing modal content
+    var modal = document.querySelector('.modal');
+    if (modal) {
+        modal.remove();
+    }
+
+    // Create a new modal for adding data
+    modal = document.createElement('div');
+    modal.classList.add('modal');
+
+    // Create a form for adding new data based on the selected table
+    var form = document.createElement('form');
+    var addButton = document.createElement('button');
+    addButton.textContent = 'Guardar';
+    var cancelButton = document.createElement('button');
+    cancelButton.textContent = 'Cancelar';
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var selectedTable = document.forms['tableForm']['tabla'].value; // Get the selected table value
+        var formData = new FormData(form);
+
+        // Convert ID input to integer
+        var entryId = parseInt(formData.get('id'), 10); // Assuming the ID field name is 'id'
+
+        // Append transformed ID back to FormData
+        formData.set('id', entryId);
+
+        formData.append('selected_table', selectedTable); // Append selected_table key to form data
+        fetch('/actualizar_entry', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message); // Display success or error message
+            modal.remove(); // Close the modal
+            if (data.success) {
+                fetchTableData(); // Refresh the table data
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred. Please try again.'); // Display error message
+        });
+    });
+    cancelButton.addEventListener('click', function() {
+        // Clear the form and close the modal
+        form.reset();
+        modal.remove();
+    });
+
+    // Create form fields based on the selected table
+    var selectedTable = document.forms['tableForm']['tabla'].value;
+    console.log('Selected Table:', selectedTable);
+
+    // Create form fields based on the selected table
+    var selectedTable = document.forms['tableForm']['tabla'].value;
+    switch (selectedTable) {
+        case 'tipos_mesa':
+            // Create form fields for tipos_mesa table (nombre, tamano, cantidad)
+            var idInput = document.createElement('input');
+            idInput.type = 'text';
+            idInput.name = 'id';
+            idInput.placeholder = 'Id';
+
+            var nombreInput = document.createElement('input');
+            nombreInput.type = 'text';
+            nombreInput.name = 'nombre';
+            nombreInput.placeholder = 'Nombre';
+
+            var tamanoInput = document.createElement('input');
+            tamanoInput.type = 'text';
+            tamanoInput.name = 'tamano';
+            tamanoInput.placeholder = 'Tamaño';
+
+            var cantidadInput = document.createElement('input');
+            cantidadInput.type = 'number';
+            cantidadInput.name = 'cantidad';
+            cantidadInput.placeholder = 'Cantidad';
+
+            // Append form fields to the form element
+            form.appendChild(idInput);
+            form.appendChild(nombreInput);
+            form.appendChild(tamanoInput);
+            form.appendChild(cantidadInput);
+            form.appendChild(addButton);
+            form.appendChild(cancelButton);
+            break;
+        case 'sucursales':
+            // Create form fields for sucursales table (nombre, direccion, comuna, ciudad, telefono, apertura, cierre)
+            var idInput = document.createElement('input');
+            idInput.type = 'text';
+            idInput.name = 'id';
+            idInput.placeholder = 'Id';
+
+            var nombreInput = document.createElement('input');
+            nombreInput.type = 'text';
+            nombreInput.name = 'nombre';
+            nombreInput.placeholder = 'Nombre';
+
+            var direccionInput = document.createElement('input');
+            direccionInput.type = 'text';
+            direccionInput.name = 'direccion';
+            direccionInput.placeholder = 'Dirección';
+
+            var comunaInput = document.createElement('input');
+            comunaInput.type = 'text';
+            comunaInput.name = 'comuna';
+            comunaInput.placeholder = 'Comuna';
+
+            var ciudadInput = document.createElement('input');
+            ciudadInput.type = 'text';
+            ciudadInput.name = 'ciudad';
+            ciudadInput.placeholder = 'Ciudad';
+
+            var telefonoInput = document.createElement('input');
+            telefonoInput.type = 'text';
+            telefonoInput.name = 'telefono';
+            telefonoInput.placeholder = 'Teléfono';
+
+            var aperturaInput = document.createElement('input');
+            aperturaInput.type = 'text';
+            aperturaInput.name = 'apertura';
+            aperturaInput.placeholder = 'Apertura';
+
+            var cierreInput = document.createElement('input');
+            cierreInput.type = 'text';
+            cierreInput.name = 'cierre';
+            cierreInput.placeholder = 'Cierre';
+
+            // Append form fields to the form element
+            form.appendChild(idInput);
+            form.appendChild(nombreInput);
+            form.appendChild(direccionInput);
+            form.appendChild(comunaInput);
+            form.appendChild(ciudadInput);
+            form.appendChild(telefonoInput);
+            form.appendChild(aperturaInput);
+            form.appendChild(cierreInput);
+            form.appendChild(addButton);
+            form.appendChild(cancelButton);
+            break;
+
+            break;
+        case 'mesas_sucursal':
+            // Create form fields for mesas_sucursal table (id_sucursal, id_mesa, stock_mesa)
+            var idInput = document.createElement('input');
+            idInput.type = 'text';
+            idInput.name = 'id';
+            idInput.placeholder = 'Id';
+
+            var idSucursalInput = document.createElement('input');
+            idSucursalInput.type = 'text';
+            idSucursalInput.name = 'id_sucursal';
+            idSucursalInput.placeholder = 'ID Sucursal';
+
+            var idMesaInput = document.createElement('input');
+            idMesaInput.type = 'text';
+            idMesaInput.name = 'id_mesa';
+            idMesaInput.placeholder = 'ID Mesa';
+
+            var stockMesaInput = document.createElement('input');
+            stockMesaInput.type = 'number';
+            stockMesaInput.name = 'stock_mesas';
+            stockMesaInput.placeholder = 'Stock Mesa';
+
+            // Append form fields to the form element
+            form.appendChild(idInput);
+            form.appendChild(idSucursalInput);
+            form.appendChild(idMesaInput);
+            form.appendChild(stockMesaInput);
+            form.appendChild(addButton);
+            form.appendChild(cancelButton);
+            break;
+
+        default:
+            // Handle default case or invalid table selection
+            alert('Invalid table selection');
+            break;
+    }
+
+    modal.appendChild(form);
+    document.body.appendChild(modal);
+}
+
+
+
+    </script>
+</body>
+
+</html>
