@@ -147,8 +147,8 @@ def arrendar_mesa():
     
     try:
         # Insert data into the movimientos table
-        insert_movimientos_query = "INSERT INTO movimientos (rut, tipo_mov, puntos, fecha_mov, id_mov) VALUES (%s, %s, %s, %s, %s)"
-        cursor.execute(insert_movimientos_query, (rut, 'arrendar', 100, fecha_arriendo, id_movimiento))
+        insert_movimientos_query = "INSERT INTO movimientos (rut, tipo_mov, puntos, fecha_mov, id_mov,id_sucursal, id_mesa, id_bloque_horario) VALUES (%s, %s, %s, %s, %s,%s,%s,%s)"
+        cursor.execute(insert_movimientos_query, (rut, 'arrendar', 100, fecha_arriendo, id_movimiento,sucursal,mesa,bloque_horario))
         
         # Insert data into the hist_arriendo table
         insert_hist_arriendo_query = "INSERT INTO hist_arriendo (rut, id_mov, fecha_arriendo,id_sucursal, id_mesa, id_bloque_horario) VALUES (%s, %s, %s,%s, %s, %s)"
