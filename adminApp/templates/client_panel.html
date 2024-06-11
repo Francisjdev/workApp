@@ -15,7 +15,6 @@
             <a href="{{ url_for('logout') }}">Log Out</a>
         </nav>
     </header>
-    <h1>Información del Cliente</h1>
     <div class="cliente-info">
         <div class="cliente-card">
             <h2>Información Personal</h2>
@@ -25,7 +24,7 @@
             <p>Puntos: {{ cliente[3] }}</p>
             {% if cliente[3] < 20 %}
             <div>
-                <span>Necesita al menos 20 puntos para arrendar una mesa o solicitar un descuento.</span>
+                <span>Necesita al menos 100 puntos para arrendar una mesa o solicitar un descuento.</span>
             </div>
             {% elif cliente[3] < 50 %}
             <div>
@@ -34,7 +33,7 @@
             {% endif %}
 
             {% if cliente[3] >= 20 %}
-            <a href="#" onclick="createForm('{{ cliente[0] }}')">Arrendar Mesa</a>
+            <a id="arrendarpanel" href="#" onclick="createForm('{{ cliente[0] }}')">Arrendar Mesa</a>
             {% endif %}
 
             {% if cliente[3] >= 50 %}
@@ -45,21 +44,26 @@
             <h2>Historial de Movimientos</h2>
             <table class="clientes-table">
                 <tr>
-                    <th>RUT</th>
-                    <th>Tipo de Movimiento</th>
+                    <th>ID Mov</th>
+                    <th>Tipo Movimiento</th>
                     <th>Puntos</th>
-                    <th>Fecha</th>
-                    <th>Acciones</th> <!-- Added column header for actions -->
+                    <th>Fecha Movimiento</th>
+                    <th>Sucursal</th>
+                    <th>Mesa</th>
+                    <th>Bloque Horario</th>
+                    <th>Acciones</th>
                 </tr>
-                {% for movimiento in movimientos %}
+                {% for movimiento in combined_data %}
                 <tr>
-                    <td>{{ movimiento[0] }}</td>
-                    <td>{{ movimiento[1] }}</td>
-                    <td>{{ movimiento[2] }}</td>
-                    <td>{{ movimiento[3] }}</td>
+                    <td>{{ movimiento.id_mov }}</td>
+                    <td>{{ movimiento.tipo_mov }}</td>
+                    <td>{{ movimiento.puntos }}</td>
+                    <td>{{ movimiento.fecha_mov }}</td>
+                    <td>{{ movimiento.sucursal }}</td>
+                    <td>{{ movimiento.mesa }}</td>
+                    <td>{{ movimiento.hora }}</td>
                     <td>
-                        <!-- Added cancel button with onclick event -->
-                        <button onclick="cancelMovement('{{ movimiento[4] }}')">Cancelar</button>
+                        <button class="cancelar-btn" data-id="{{ movimiento.id_mov }}" data-fecha="{{ movimiento.fecha_mov }}">Cancelar</button>
                     </td>
                 </tr>
                 {% endfor %}
@@ -97,189 +101,15 @@
             }
         }
 
-        function rentTable(clienteId) {
-            if (confirm('¿Está seguro de que desea arrendar una mesa?')) {
-                fetch(`/arrendar_mesa/${clienteId}`, {
-                    method: 'GET',
-                })
-                .then(response => {
-                    if (response.ok) {
-                        alert('Mesa arrendada exitosamente.');
-                        window.location.reload(); // Reload the page after successful rental
-                    } else {
-                        alert('Error al arrendar la mesa.');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Error al arrendar la mesa.');
-                });
-            }
-        }
 
-        function requestDiscount(clienteId) {
-            if (confirm('¿Está seguro de que desea solicitar un descuento?')) {
-                fetch(`/solicitar_descuento/${clienteId}`, {
-                    method: 'GET',
-                })
-                .then(response => {
-                    if (response.ok) {
-                        alert('Descuento solicitado exitosamente.');
-                        window.location.reload(); // Reload the page after successful discount request
-                    } else {
-                        alert('Error al solicitar el descuento.');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Error al solicitar el descuento.');
-                });
-            }
-        }
+      
     </script>
     <script>
-  function createForm(clienteId) {
-    if (confirm('¿Está seguro de que desea arrendar una mesa?')) {
-        // Create a form element
-        var form = document.createElement('form');
-        form.method = 'POST'; // Change method to POST for sending data to the server
-        form.action = '/arrendar_mesa/' + clienteId; // Specify the action URL
-        form.className = 'form-container'; // Apply the form container class
-
-        // Add fecha_arriendo field with a date input
-        var fechaLabel = document.createElement('label');
-        fechaLabel.textContent = 'Fecha de Arriendo:';
-        fechaLabel.className = 'form-label'; // Apply the form label class
-        var fechaInput = document.createElement('input');
-        fechaInput.type = 'date';
-        fechaInput.name = 'fecha_arriendo';
-        fechaInput.className = 'form-input'; // Apply the form input class
-
-        // Add Sucursal field as a select dropdown
-        var sucursalLabel = document.createElement('label');
-        sucursalLabel.textContent = 'Sucursal:';
-        sucursalLabel.className = 'form-label'; // Apply the form label class
-        var sucursalSelect = document.createElement('select');
-        sucursalSelect.name = 'sucursal';
-        sucursalSelect.className = 'form-input'; // Apply the form input class
-
-        // Fetch sucursales data using AJAX
-        fetch('/get_sucursales')
-            .then(response => response.json())
-            .then(data => {
-                // Populate the sucursal select dropdown with fetched data
-                data.forEach(sucursal => {
-                    var option = document.createElement('option');
-                    option.value = sucursal.id;
-                    option.textContent = sucursal.nombre;
-                    sucursalSelect.appendChild(option);
-                });
-            })
-            .catch(error => console.error('Error fetching sucursales:', error));
-
-        // Add tipo de juego field as a select dropdown
-        var juegoLabel = document.createElement('label');
-        juegoLabel.textContent = 'Tipo de Juego:';
-        juegoLabel.className = 'form-label'; // Apply the form label class
-        var juegoSelect = document.createElement('select');
-        juegoSelect.name = 'tipo_juego';
-        juegoSelect.className = 'form-input'; // Apply the form input class
-
-        // Fetch tipos juegos data using AJAX
-        fetch('/get_tipos_juegos')
-            .then(response => response.json())
-            .then(data => {
-                // Populate the tipo de juego select dropdown with fetched data
-                data.forEach(tipoJuego => {
-                    var option = document.createElement('option');
-                    option.value = tipoJuego.id;
-                    option.textContent = tipoJuego.nombre;
-                    juegoSelect.appendChild(option);
-                });
-            })
-            .catch(error => console.error('Error fetching tipos juegos:', error));
-// Add tipo de mesa field as a select dropdown
-                var mesaLabel = document.createElement('label');
-                mesaLabel.textContent = 'Tipo de Mesa:';
-                mesaLabel.className = 'form-label'; // Apply the form label class
-                var mesaSelect = document.createElement('select');
-                mesaSelect.name = 'tipo_mesa';
-                mesaSelect.className = 'form-input'; // Apply the form input class
-
-                // Fetch tipos mesa data using AJAX based on the selected tipo de juego
-                juegoSelect.addEventListener('change', () => {
-                    var selectedTipoJuegoId = juegoSelect.value;
-                    var selectedTipoMesaId = selectedTipoJuegoId <= 5 ? [1, 2] : [4]; // Determine the selected tipo de mesa IDs based on tipo de juego ID
-                    fetch(`/get_tipos_mesa`)
-                        .then(response => response.json())
-                        .then(data => {
-                            // Clear existing options
-                            mesaSelect.innerHTML = '';
-                            // Filter the tipos mesa data based on selected tipo de mesa IDs
-                            var filteredMesas = data.filter(mesa => selectedTipoMesaId.includes(mesa.id));
-                            // Populate the tipo de mesa select dropdown with filtered data
-                            filteredMesas.forEach(mesa => {
-                                var option = document.createElement('option');
-                                option.value = mesa.id;
-                                option.textContent = mesa.nombre;
-                                mesaSelect.appendChild(option);
-                            });
-                        })
-                        .catch(error => console.error('Error fetching tipos mesa:', error));
-                });
-
-
-        // Add numero de jugadores field
-        var jugadoresLabel = document.createElement('label');
-        jugadoresLabel.textContent = 'Número de Jugadores:';
-        jugadoresLabel.className = 'form-label'; // Apply the form label class
-        var jugadoresInput = document.createElement('p');
-        jugadoresInput.textContent = '2';
-        jugadoresInput.name = 'num_jugadores';
-        jugadoresInput.className = 'form-input'; // Apply the form input class
-
-        // Add Horas max field
-        var horasLabel = document.createElement('label');
-        horasLabel.textContent = 'Horas de arriendo:';
-        horasLabel.className = 'form-label'; // Apply the form label class
-        var horasInput = document.createElement('p');
-        horasInput.type = 'number';
-        horasInput.textContent = '4';
-        horasInput.className = 'form-input'; // Apply the form input class
-
-        // Add submit button
-        var submitButton = document.createElement('input');
-        submitButton.type = 'submit'; // Change type to 'submit' for form submission
-        submitButton.value = 'Arrendar';
-        submitButton.className = 'form-submit'; // Apply the form submit button class
-
-        // Append all elements to the form
-        form.appendChild(fechaLabel);
-        form.appendChild(fechaInput);
-        form.appendChild(document.createElement('br'));
-        form.appendChild(sucursalLabel);
-        form.appendChild(sucursalSelect);
-        form.appendChild(document.createElement('br'));
-        form.appendChild(juegoLabel);
-        form.appendChild(juegoSelect);
-        form.appendChild(document.createElement('br'));
-        form.appendChild(mesaLabel);
-        form.appendChild(mesaSelect);
-        form.appendChild(document.createElement('br'));
-        form.appendChild(jugadoresLabel);
-        form.appendChild(jugadoresInput);
-        form.appendChild(document.createElement('br'));
-        form.appendChild(horasLabel);
-        form.appendChild(horasInput);
-        form.appendChild(document.createElement('br'));
-        form.appendChild(submitButton);
-
-        // Append the form to the document body
-        document.body.appendChild(form);
-    }
-}
-
-
+  function createForm() {
+    document.getElementById('arrendarpanel').addEventListener('click', function() {
+            window.location.href = '/arriendo'; // Redirect to arriendo.html
+        });
+  }
 
 
 ////////////////////////// juegos

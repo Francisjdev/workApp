@@ -9,7 +9,7 @@
 <body class="wrapper">
     <header>
         <ul>
-            <li>Logo</li>
+            <li><img src="{{ url_for('static', filename='images/logo/logo.png') }}" alt="Logo" style="height:50px;"></li>
             <li><a href="{{ url_for('home') }}">Home</a></li>
             <li><a href="{{ url_for('logout') }}">Logout</a></li>
         </ul>
@@ -60,7 +60,7 @@
                         <td>{{ movimiento.mesa }}</td>
                         <td>{{ movimiento.hora }}</td>
                         <td>
-                            <button class="cancelar-btn" data-id="{{ movimiento.id_mov }}">Cancelar</button>
+                            <button class="cancelar-btn" data-id="{{ movimiento.id_mov }}" data-fecha="{{ movimiento.fecha_mov }}">Cancelar</button>
                         </td>
                     </tr>
                     {% endfor %}
@@ -73,44 +73,49 @@
             window.location.href = '/arriendo'; // Redirect to arriendo.html
         });
 
-        // Código para cancelar un arriendo
         document.addEventListener('DOMContentLoaded', function() {
             const rutValue = document.getElementById('rut').value; // Get the rut value from the input field
-            console.log("RUT Value:", rutValue);
-
             const cancelarBtns = document.querySelectorAll('.cancelar-btn');
-            console.log("Number of Cancelar buttons detected:", cancelarBtns.length);
 
             cancelarBtns.forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const idMovimiento = this.getAttribute('data-id');
-                    console.log("Cancelar button clicked");
-                    console.log("ID Movimiento:", idMovimiento);
+    btn.addEventListener('click', function() {
+        const idMovimiento = this.getAttribute('data-id');
+        const fechaMovimiento = this.getAttribute('data-fecha');
 
-                    // Ask for confirmation before proceeding
-                    const confirmCancel = confirm('¿Estás a punto de cancelar el arriendo de mesa? ¿Deseas continuar?');
-                    if (confirmCancel) {
-                        // Perform AJAX request to delete the entry from the database
-                        fetch('/cancelar', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({ id: idMovimiento, rut: rutValue })
-                        })
-                        .then(response => {
-                            if (response.ok) {
-                                // Reload the page or update the table to reflect the deletion
-                                window.location.reload();
-                            } else {
-                                // Handle errors if necessary
-                                console.error('Failed to cancel reservation:', response.statusText);
-                            }
-                        })
-                        .catch(error => console.error('Error:', error));
-                    }
-                });
-            });
+        // Check if the movement date is today
+        const today = new Date().toISOString().split('T')[0];
+        if (fechaMovimiento <= today) {
+            alert('No puedes cancelar el movimiento el mismo día.');
+            return;
+        }
+
+        // Ask for confirmation before proceeding
+        const confirmCancel = confirm('¿Estás a punto de cancelar el arriendo de mesa? ¿Deseas continuar?');
+        if (confirmCancel) {
+            // Perform AJAX request to delete the entry from the database
+            fetch('/cancelar', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ id: idMovimiento, rut: rutValue })
+            })
+            .then(response => {
+                if (response.ok) {
+                    // Reload the page or update the table to reflect the deletion
+                    window.location.reload();
+                } else {
+                    // Handle errors if necessary
+                    response.json().then(data => {
+                        alert(data.error);
+                    });
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+    });
+});
+
         });
     </script>
 </body>

@@ -1,5 +1,5 @@
 
-from flask import Flask, jsonify, render_template, request, redirect, url_for, session, json
+from flask import Flask, jsonify, render_template, flash, request, redirect, url_for, session, json
 import mysql.connector
 import smtplib
 from datetime import datetime, timezone,timedelta
@@ -47,12 +47,11 @@ def login():
     user = cursor.fetchone()
 
     if user:
-        # Set session data
         session['username'] = username
-        session['rut'] = user[3]  # Assuming rut is in the second column of the user_login table
+        session['rut'] = user[3]
         return redirect(url_for('user_panel'))
     else:
-        # Redirect back to login page with an error message
+        flash('User or password incorrect, try again.')
         return redirect(url_for('index'))
 
 @app.route('/logout')
@@ -63,6 +62,9 @@ def logout():
     return redirect(url_for('index'))
 @app.route('/user_panel')
 def user_panel():
+    if 'username' not in session:
+        # User is not logged in, redirect to the login page
+        return redirect(url_for('index'))
     if 'username' in session:
         username = session['username']
 
@@ -120,6 +122,9 @@ def user_panel():
 @app.route('/arriendo')
 def arriendo():
     # Here, you can add any necessary logic before rendering the template
+    if 'username' not in session:
+        # User is not logged in, redirect to the login page
+        return redirect(url_for('index'))
     return render_template('arriendo.html')
 
 @app.route('/home')
@@ -170,16 +175,12 @@ def arrendar_mesa():
 @app.route('/cancelar', methods=['POST'])
 def cancelar():
     try:
-        # Get the data sent in the POST request
         data = request.get_json()
-
-        # Extract the id_movimiento and rut from the JSON data
         id_movimiento = data.get('id')
         rut = data.get('rut')
 
         logging.info(f"Received cancelar request: id_movimiento={id_movimiento}, rut={rut}")
 
-        # Query to fetch the necessary data from the movimientos table
         select_query = """
             SELECT fecha_mov, id_bloque_horario, id_sucursal, id_mesa
             FROM movimientos
@@ -189,16 +190,18 @@ def cancelar():
         movimiento_data = cursor.fetchone()
 
         if movimiento_data:
-            # Extract data from the fetched row
             fecha_mov, bloque_horario, sucursal, mesa = movimiento_data
             logging.info(f"Fetched movimiento data: fecha_mov={fecha_mov}, bloque_horario={bloque_horario}, sucursal={sucursal}, mesa={mesa}")
 
-            # Query to delete the entry from the movimientos table based on id_movimiento and rut
+            # Check if the movement date is today
+            today = datetime.now().date()
+            if fecha_mov == today:
+                return jsonify({'error': 'Cannot cancel the movement on the same day'}), 400
+
             delete_query = "DELETE FROM movimientos WHERE id_mov = %s AND rut = %s"
             cursor.execute(delete_query, (id_movimiento, rut))
             logging.info(f"Deleted from movimientos: id_movimiento={id_movimiento}, rut={rut}")
 
-            # Update the stock_mesas table
             update_stock_query = """
                 UPDATE stock_mesas
                 SET stock_disponible = stock_disponible + 1
@@ -207,7 +210,7 @@ def cancelar():
             cursor.execute(update_stock_query, (fecha_mov, bloque_horario, sucursal, mesa))
             logging.info(f"Updated stock_mesas: fecha_mov={fecha_mov}, bloque_horario={bloque_horario}, sucursal={sucursal}, mesa={mesa}")
 
-            db.commit()  # Commit the transaction
+            db.commit()
 
             return jsonify({'message': 'Entry deleted successfully'}), 200
         else:
@@ -215,10 +218,8 @@ def cancelar():
             return jsonify({'error': 'Data not found in movimientos'}), 404
 
     except Exception as e:
-        # Log the error
         logging.exception("Error in cancelar route: %s", e)
         return jsonify({'error': 'Internal Server Error'}), 500
-
 
 @app.route('/get_juegos', methods=['GET'])
 def get_juegos():

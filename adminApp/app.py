@@ -76,13 +76,42 @@ def client_panel():
             print(cliente)
             if cliente:
                 
-                query = "SELECT rut, tipo_mov, puntos, fecha_mov FROM movimientos WHERE rut=%s ORDER BY fecha_mov"
-                values = (rut,)
-                cursor.execute(query, values)
-                movimientos = cursor.fetchall()
-                disable_actions = cliente[3] < 20
-                disable_solicitar_descuento = cliente[3] < 50
-                return render_template('client_panel.html', cliente=cliente, movimientos=movimientos, disable_actions=disable_actions, disable_solicitar_descuento=disable_solicitar_descuento)
+               
+        # Fetch user movements ordered by date
+                query_movimientos = """
+                    SELECT m.tipo_mov, m.puntos, m.fecha_mov, m.id_mov, bh.nombre AS hora, tm.nombre AS mesa, s.nombre AS sucursal
+                    FROM movimientos m
+                    LEFT JOIN bloques_horas bh ON m.id_bloque_horario = bh.id
+                    LEFT JOIN tipos_mesa tm ON m.id_mesa = tm.id
+                    LEFT JOIN sucursales s ON m.id_sucursal = s.id
+                    WHERE m.rut = %s
+                    ORDER BY m.fecha_mov
+                """
+                cursor.execute(query_movimientos, (rut,))
+                user_movimientos = cursor.fetchall()
+
+                # Format user movements
+                combined_data = []
+                for movimiento in user_movimientos:
+                    combined_data.append({
+                        'tipo_mov': movimiento[0],
+                        'puntos': str(movimiento[1]),
+                        'fecha_mov': movimiento[2],
+                        'id_mov': movimiento[3],
+                        'hora': movimiento[4] if movimiento[4] else None,
+                        'mesa': movimiento[5] if movimiento[5] else None,
+                        'sucursal': movimiento[6] if movimiento[6] else None
+                    })
+
+                # Fetch sum of points from movimientos table
+                query_sum_movimientos = "SELECT SUM(puntos) FROM movimientos WHERE rut = %s"
+                cursor.execute(query_sum_movimientos, (rut,))
+                sum_movimientos = cursor.fetchone()[0] or 0
+
+                # Calculate remaining points
+                remaining_points = cliente[3] - sum_movimientos
+
+                return render_template('client_panel.html', cliente=cliente, combined_data=combined_data, remaining_points=remaining_points)
             else:
                 return 'Cliente no encontrado'
         return render_template('client_search.html')

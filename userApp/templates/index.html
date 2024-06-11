@@ -17,6 +17,15 @@
     </div>
     <form method="POST" action="/login">
         <h3>Login Here</h3>
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for message in messages %}
+                        <p>{{ message }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
 
         <label for="username">Username</label>
         <input type="text" placeholder="Username" id="username" name="username">
