@@ -33,7 +33,7 @@
             {% endif %}
 
             {% if cliente[3] >= 20 %}
-            <a id="arrendarpanel" href="#" onclick="createForm('{{ cliente[0] }}')">Arrendar Mesa</a>
+            <button type="button" id="arrendarpanel">Arrendar Mesa</button>
             {% endif %}
 
             {% if cliente[3] >= 50 %}
@@ -77,72 +77,56 @@
     </div>
     {% endif %}
 
-
-
     <!-- JavaScript code for handling cancel movement button click -->
     <script>
-        function cancelMovement(movementId) {
-            if (confirm('¿Está seguro de que desea cancelar este movimiento?')) {
-                fetch('/delete_last_movement/{{ cliente[0] }}', {
-                    method: 'GET',
+        document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('arrendarpanel').addEventListener('click', function() {
+        window.location.href = '/arriendo'; // Redirect to arriendo.html
+    });
+
+    const cancelarBtns = document.querySelectorAll('.cancelar-btn');
+    cancelarBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const idMovimiento = this.getAttribute('data-id');
+            const fechaMovimiento = this.getAttribute('data-fecha');
+
+            // Check if the movement date is today or in the past
+            const today = new Date().toISOString().split('T')[0];
+            if (fechaMovimiento <= today) {
+                alert('No puedes cancelar el movimiento el mismo día o en una fecha pasada.');
+                return;
+            }
+
+            // Ask for confirmation before proceeding
+            const confirmCancel = confirm('¿Estás a punto de cancelar el arriendo de mesa? ¿Deseas continuar?');
+            if (confirmCancel) {
+                // Get the rut value
+                const rutValue = "{{ cliente[0] }}";  // Ensure this value is correctly set in the template
+
+                // Perform AJAX request to delete the entry from the database
+                fetch('/cancelar', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ id: idMovimiento, rut: rutValue })
                 })
                 .then(response => {
                     if (response.ok) {
-                        alert('Movimiento cancelado exitosamente.');
-                        window.location.reload(); // Reload the page after successful cancellation
+                        // Reload the page or update the table to reflect the deletion
+                        window.location.reload();
                     } else {
-                        alert('Error al cancelar el movimiento.');
+                        // Handle errors if necessary
+                        response.json().then(data => {
+                            alert(data.error);
+                        });
                     }
                 })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Error al cancelar el movimiento.');
-                });
+                .catch(error => console.error('Error:', error));
             }
-        }
-
-
-      
-    </script>
-    <script>
-  function createForm() {
-    document.getElementById('arrendarpanel').addEventListener('click', function() {
-            window.location.href = '/arriendo'; // Redirect to arriendo.html
         });
-  }
-
-
-////////////////////////// juegos
-function fetchTiposJuegos() {
-    fetch('/get_tipos_juegos')
-        .then(response => response.json())
-        .then(data => {
-            // Select the juegos select field
-            const juegosSelect = document.querySelector('tipo_juego');
-
-            // Clear existing options
-            juegosSelect.innerHTML = '';
-
-            // Add default option
-            const defaultOption = document.createElement('option');
-            defaultOption.value = '';
-            defaultOption.textContent = 'Select Tipo de Juego';
-            juegosSelect.appendChild(defaultOption);
-
-            // Populate options from fetched data
-            data.forEach(tipoJuego => {
-                const option = document.createElement('option');
-                option.value = tipoJuego.id;
-                option.textContent = tipoJuego.nombre;
-                juegosSelect.appendChild(option);
-            });
-        })
-        .catch(error => console.error('Error fetching tipos juegos:', error));
-}
-
-// Call fetchTiposJuegos function when the document is loaded
-document.addEventListener('DOMContentLoaded', fetchTiposJuegos);
-
+    });
+});
 
     </script>
 </body>

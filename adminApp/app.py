@@ -1,6 +1,9 @@
-from flask import Flask, jsonify, render_template, request, redirect, url_for, session
+from flask import Flask, jsonify, render_template, request, redirect, url_for, session,flash
 import mysql.connector
 import smtplib
+import random
+import string
+import logging
 from datetime import datetime, timezone, timedelta
 
 app = Flask(__name__)
@@ -41,7 +44,8 @@ def login():
             session['logged_in'] = True
             return redirect(url_for('admin_home'))
         else:
-            return 'Invalid credentials'
+            flash('User or password incorrect, try again.')
+            return render_template('login.html')
     return render_template('login.html')
 
 
@@ -117,6 +121,140 @@ def client_panel():
         return render_template('client_search.html')
     else:
         return redirect(url_for('login'))
+
+@app.route('/arriendo')
+def arriendo():
+    # Here, you can add any necessary logic before rendering the template
+    if 'logged_in' not in session:
+        # User is not logged in, redirect to the login page
+        return redirect(url_for('login'))
+    return render_template('arriendo.html')
+
+
+@app.route('/arrendar_mesa', methods=['POST'])
+def arrendar_mesa():
+    # Get data from the request
+    rut = session.get('rut')
+    if not rut:
+        return jsonify({'error': 'Rut not found in session'}), 400
+
+    fecha_arriendo = request.form['fecha_arriendo']
+    bloque_horario = request.form['hora']
+    sucursal = request.form['sucursal']
+    mesa = request.form['mesas']
+        # Remove time from fecha_arriendo
+    fecha_arriendo = datetime.strptime(fecha_arriendo, '%Y-%m-%d').date()
+    
+    # Generate a random id_movimiento (arr + 3 random letters)
+    id_movimiento = 'arr' + ''.join(random.choices(string.ascii_letters, k=3))
+    
+    try:
+        # Insert data into the movimientos table
+        insert_movimientos_query = "INSERT INTO movimientos (rut, tipo_mov, puntos, fecha_mov, id_mov,id_sucursal, id_mesa, id_bloque_horario) VALUES (%s, %s, %s, %s, %s,%s,%s,%s)"
+        cursor.execute(insert_movimientos_query, (rut, 'arrendar', 100, fecha_arriendo, id_movimiento,sucursal,mesa,bloque_horario))
+        
+        # Insert data into the hist_arriendo table
+        insert_hist_arriendo_query = "INSERT INTO hist_arriendo (rut, id_mov, fecha_arriendo,id_sucursal, id_mesa, id_bloque_horario) VALUES (%s, %s, %s,%s, %s, %s)"
+        cursor.execute(insert_hist_arriendo_query, (rut, id_movimiento, fecha_arriendo,sucursal,mesa,bloque_horario))
+        
+        # Update stock_mesas table
+        update_stock_query = "UPDATE stock_mesas SET stock_disponible = stock_disponible - 1 WHERE fecha = %s AND bloque_horario_id = %s AND sucursal_id = %s"
+        cursor.execute(update_stock_query, (fecha_arriendo, bloque_horario, sucursal))
+        db.commit()  # Commit the transaction
+        
+        # Redirect the user to the user_panel route
+        return redirect(url_for('client_panel'))
+
+    except mysql.connector.Error as err:
+        # Handle MySQL errors
+        return jsonify({'error': str(err)}), 500
+
+@app.route('/cancelar', methods=['POST'])
+def cancelar():
+    try:
+        data = request.get_json()
+        id_movimiento = data.get('id')
+        rut = data.get('rut')
+
+        logging.info(f"Received cancelar request: id_movimiento={id_movimiento}, rut={rut}")
+
+        select_query = """
+            SELECT fecha_mov, id_bloque_horario, id_sucursal, id_mesa
+            FROM movimientos
+            WHERE id_mov = %s AND rut = %s
+        """
+        cursor.execute(select_query, (id_movimiento, rut))
+        movimiento_data = cursor.fetchone()
+
+        if movimiento_data:
+            fecha_mov, bloque_horario, sucursal, mesa = movimiento_data
+            logging.info(f"Fetched movimiento data: fecha_mov={fecha_mov}, bloque_horario={bloque_horario}, sucursal={sucursal}, mesa={mesa}")
+
+            # Check if the movement date is today
+            today = datetime.now().date()
+            if fecha_mov == today:
+                return jsonify({'error': 'Cannot cancel the movement on the same day'}), 400
+
+            delete_query = "DELETE FROM movimientos WHERE id_mov = %s AND rut = %s"
+            cursor.execute(delete_query, (id_movimiento, rut))
+            logging.info(f"Deleted from movimientos: id_movimiento={id_movimiento}, rut={rut}")
+
+            update_stock_query = """
+                UPDATE stock_mesas
+                SET stock_disponible = stock_disponible + 1
+                WHERE fecha = %s AND bloque_horario_id = %s AND sucursal_id = %s AND mesa_id = %s
+            """
+            cursor.execute(update_stock_query, (fecha_mov, bloque_horario, sucursal, mesa))
+            logging.info(f"Updated stock_mesas: fecha_mov={fecha_mov}, bloque_horario={bloque_horario}, sucursal={sucursal}, mesa={mesa}")
+
+            db.commit()
+
+            return jsonify({'message': 'Entry deleted successfully'}), 200
+        else:
+            logging.error("Data not found in movimientos")
+            return jsonify({'error': 'Data not found in movimientos'}), 404
+
+    except Exception as e:
+        logging.exception("Error in cancelar route: %s", e)
+        return jsonify({'error': 'Internal Server Error'}), 500
+
+
+@app.route('/get_juegos', methods=['GET'])
+def get_juegos():
+    # Query to fetch data from the tipos_juego table
+    query_juegos = "SELECT id, nombre FROM tipos_juego"
+    cursor.execute(query_juegos)
+    juegos_data = cursor.fetchall()
+
+    # Convert the data to a list of dictionaries for JSON serialization
+    juegos_list = [{'id': juego[0], 'nombre': juego[1]} for juego in juegos_data]
+
+    return jsonify({'juegos': juegos_list})
+
+   # CHEQUEA DISPONIBILIDAD DE MESAS SEGUN FECHA
+@app.route('/verificar_disponibilidad', methods=['POST'])
+def verificar_disponibilidad():
+    # Obtén los datos enviados desde el cliente
+    data = request.json
+    fecha = data.get('fecha')
+    bloque_horario = data.get('bloqueHorario')  # Asegúrate de que coincida con el nombre en tu JavaScript
+
+    # Realiza la consulta a la base de datos para verificar la disponibilidad de stock
+    cursor = db.cursor()
+    consulta = "SELECT stock_disponible FROM stock_mesas WHERE fecha = %s AND bloque_horario_id = %s"
+    cursor.execute(consulta, (fecha, bloque_horario))
+    resultado = cursor.fetchone()
+    # Devuelve la respuesta al cliente
+    if resultado:
+        print(resultado[0])
+        stock_disponible = resultado[0]
+        return jsonify({'disponible': stock_disponible > 0})
+    else:
+        return jsonify({'disponible': False})
+
+
+
+
 
 
 @app.route('/mantenedor')
